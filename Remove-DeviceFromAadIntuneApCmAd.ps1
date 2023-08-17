@@ -25,7 +25,7 @@
         * The host workstation needs to be joined to the domain.
         * The host workstation should be able to communicate with a domain controller.
 .ASSUMPTIONS
-    * Devices in ConfigMgr and Intune have unique serial numbers and names, respectively. If multiple devices are found with the same identifier, the script will exit with a warning.
+    * Devices in ConfigMgr and Intune have unique serial numbers and names, respectively. if multiple devices are found with the same identifier, the script will exit with a warning.
 .OUTPUTS
     * Hosted outputs, typically in color-coded (green for success, red for failure) format for easy identification.
     * Error messages and warnings generated based on encountered issues.
@@ -175,128 +175,81 @@ if ($requiresAuthentication) {
     }
 } #endregion Authentication
 
-#region ConfigMgr
-if ($PSBoundParameters.ContainsKey("ConfigMgr") -or $PSBoundParameters.ContainsKey("All")) {
-    # Attempt to locate the device in ConfigMgr using serial number
+#region AAD
+if ($PSBoundParameters.ContainsKey("AAD") -or $PSBoundParameters.ContainsKey("All")) {
     Write-Host "Locating device in" -NoNewline
-    Write-Host " ConfigMgr" -ForegroundColor Magenta -NoNewline
+    Write-Host " Azure AD" -NoNewline -ForegroundColor Yellow
     Write-Host "..." -NoNewline
+    # Logic to decide the search parameter based on what's provided
+    if ($serialNumber) {
+        $searchParameter = "serialNumber:$serialNumber"
+    } elseif ($computerName) {
+        $searchParameter = "displayName:$computerName"
+    } else {
+        Write-Host "Fail" -ForegroundColor Red
+        Write-Warning "Either serialNumber or computerName must be provided for Azure AD search"
+        return
+    }
     try {
-        $SiteCode = (Get-PSDrive -PSProvider CMSITE -ErrorAction Stop).Name
-        Push-Location "$($SiteCode):" -ErrorAction Stop
-        # Getting the computer name associated with the serial number from ConfigMgr
-        [array]$ConfigMgrDevices = Get-CMDevice | Where-Object { 
-            (Get-CMDeviceHardwareInventory -ResourceId $_.ResourceID | 
-            Select-Object -ExpandProperty SMS_G_System_COMPUTER_SYSTEM_PRODUCT).Version -eq $serialNumber 
-        } -ErrorAction Stop
-        # Storing the associated computer name for future use in other regions
-        $global:ComputerName = $ConfigMgrDevices[0].Name
-        Write-Host "Success" -ForegroundColor Green
+        $AADDevice = Get-MgDevice -Search $searchParameter -CountVariable CountVar -ConsistencyLevel eventual -ErrorAction Stop
     } catch {
         Write-Host "Fail" -ForegroundColor Red
         Write-Error "$($_.Exception.Message)"
-        $LocateInConfigMgrFailure = $true
+        $LocateInAADFailure = $true
     }
-    # If successfully located, attempt removal from ConfigMgr
-    if (!$LocateInConfigMgrFailure) {
-        if ($ConfigMgrDevices.Count -eq 1) {
-            $ConfigMgrDevice = $ConfigMgrDevices[0]
-            Write-Host "  ResourceID: $($ConfigMgrDevice.ResourceID)"
-            Write-Host "  SMSID: $($ConfigMgrDevice.SMSID)"
-            Write-Host "  UserDomainName: $($ConfigMgrDevice.UserDomainName)"
-            Write-Host "  ComputerName: $global:ComputerName"
+    if ($LocateInAADFailure -ne $true) {
+        if ($AADDevice.Count -eq 1) {
+            Write-Host "Success" -ForegroundColor Green
+            Write-Host "  DisplayName: $($AADDevice.DisplayName)"
+            Write-Host "  ObjectId: $($AADDevice.Id)"
+            Write-Host "  DeviceId: $($AADDevice.DeviceId)"
+
             Write-Host "Removing device from" -NoNewline
-            Write-Host " ConfigMgr" -ForegroundColor Magenta -NoNewline
+            Write-Host " Azure AD" -NoNewline -ForegroundColor Yellow
             Write-Host "..." -NoNewline
             try {
-                Remove-CMDevice -InputObject $ConfigMgrDevice -Force -ErrorAction Stop
-                Write-Host "Success" -ForegroundColor Green
+                $Result = Remove-MgDevice -DeviceId $AADDevice.Id -PassThru -ErrorAction Stop
+                if ($Result -eq $true) {
+                    Write-Host "Success" -ForegroundColor Green
+                } else {
+                    Write-Host "Fail" -ForegroundColor Red
+                }
             } catch {
                 Write-Host "Fail" -ForegroundColor Red
                 Write-Error "$($_.Exception.Message)"
             }
-        } elseif ($ConfigMgrDevices.Count -gt 1) {
+        } elseif ($AADDevice.Count -gt 1) {
             Write-Host "Fail" -ForegroundColor Red
-            Write-Warning "Multiple devices found in ConfigMgr with the same serial number. Serial number must be unique." 
-            Return
+            Write-Warning "Multiple devices found in Azure AD. The device display name must be unique." 
         } else {
             Write-Host "Fail" -ForegroundColor Red
-            Write-Warning "Device not found in ConfigMgr using the provided serial number."    
+            Write-Warning "Device not found in Azure AD"    
         }
     }
-    Pop-Location
-} #endregion ConfigMgr
-
-#region AD
-if ($PSBoundParameters.ContainsKey("AD") -or $PSBoundParameters.ContainsKey("All"))
-{
-    try
-    {
-        Write-host "Locating device in " -NoNewline
-        Write-host "Active Directory" -ForegroundColor Blue -NoNewline
-        Write-Host "..." -NoNewline
-        $Searcher = [ADSISearcher]::new()
-        $Searcher.Filter = "(sAMAccountName=$computerName`$)"
-        [void]$Searcher.PropertiesToLoad.Add("distinguishedName")
-        $ComputerAccount = $Searcher.FindOne()
-        if ($ComputerAccount)
-        {
-            Write-host "Success" -ForegroundColor Green
-            Write-Host "Removing device from" -NoNewline
-            Write-Host "Active Directory" -NoNewline -ForegroundColor Blue
-            Write-Host "..." -NoNewline
-            $DirectoryEntry = $ComputerAccount.GetDirectoryEntry()
-            $result = $DirectoryEntry.DeleteTree()
-            Write-Host "Success" -ForegroundColor Green
-        }
-        Else
-        {
-            Write-host "Fail" -ForegroundColor Red
-            Write-Warning "Device not found in Active Directory"  
-        }
-    }
-    catch
-    {
-        Write-host "Fail" -ForegroundColor Red
-        Write-Error "$($_.Exception.Message)"
-    }
-} #endregion
-
-#region AD
-if ($PSBoundParameters.ContainsKey("AD") -or $PSBoundParameters.ContainsKey("All")) {
-    try {
-        Write-Host "Locating device in" -NoNewline
-        Write-Host " Active Directory" -ForegroundColor Blue -NoNewline
-        Write-Host "..." -NoNewline
-        $Searcher = [ADSISearcher]::new()
-        $Searcher.Filter = "(sAMAccountName=$computerName`$)"
-        [void]$Searcher.PropertiesToLoad.Add("distinguishedName")
-        $ComputerAccount = $Searcher.FindOne()
-        if ($ComputerAccount) {
-            Write-Host "Success" -ForegroundColor Green
-            Write-Host "Removing device from" -NoNewline
-            Write-Host " Active Directory" -ForegroundColor Blue -NoNewline
-            Write-Host "..." -NoNewline
-            $DirectoryEntry = $ComputerAccount.GetDirectoryEntry()
-            $result = $DirectoryEntry.DeleteTree()
-            Write-Host "Success" -ForegroundColor Green
-        } else {
-            Write-Host "Fail" -ForegroundColor Red
-            Write-Warning "Device not found in Active Directory"
-        }
-    } catch {
-        Write-Host "Fail" -ForegroundColor Red
-        Write-Error "$($_.Exception.Message)"
-    }
-} #endregion AD
+}
+#endregion AAD
 
 #region Intune
 if ($PSBoundParameters.ContainsKey("Intune") -or $PSBoundParameters.ContainsKey("Autopilot") -or $PSBoundParameters.ContainsKey("All")) {
     Write-Host "Locating device in" -NoNewline
     Write-Host " Intune" -NoNewline -ForegroundColor Cyan
     Write-Host "..." -NoNewline
+    
+    # Determine the filter condition based on provided parameters
+    if ($serialNumber -and $computerName) {
+        $filterCondition = "deviceName eq '$computerName' or hardwareSerialNumber eq '$serialNumber'"
+    } elseif ($serialNumber) {
+        $filterCondition = "hardwareSerialNumber eq '$serialNumber'"
+    } elseif ($computerName) {
+        $filterCondition = "deviceName eq '$computerName'"
+    } else {
+        Write-Host "Fail" -ForegroundColor Red
+        Write-Warning "Either serialNumber or computerName must be provided for Intune search"
+        return
+    }
+
     try {
-        $IntuneDevice = Get-MgDeviceManagementManagedDevice -Filter "deviceName eq '$computerName' or hardwareSerialNumber eq '$serialNumber'" -ErrorAction Stop
+        $IntuneDevice = Get-MgDeviceManagementManagedDevice -Filter $filterCondition -ErrorAction Stop
     } catch {
         Write-Host "Fail" -ForegroundColor Red
         Write-Error "$($_.Exception.Message)"
@@ -324,19 +277,33 @@ if ($PSBoundParameters.ContainsKey("Intune") -or $PSBoundParameters.ContainsKey(
             Write-Warning "Multiple devices found in Intune with the same device name or serial number. Ensure uniqueness." 
         } else {
             Write-Host "Fail" -ForegroundColor Red
-            Write-Warning "Device not found in Azure AD"    
+            Write-Warning "Device not found in Intune"    
         }
     }
-} #endregion Intune
+}
+#endregion Intune
 
 #region Autopilot
 if (($PSBoundParameters.ContainsKey("Autopilot") -or $PSBoundParameters.ContainsKey("All")) -and $IntuneDevice.Count -eq 1) {
     Write-Host "Locating device in" -NoNewline
     Write-Host " Windows Autopilot" -NoNewline -ForegroundColor Cyan
     Write-Host "..." -NoNewline
+    
+    # Determine the filter condition based on provided parameters
+    if ($serialNumber -and $computerName) {
+        $filterCondition = "deviceName eq '$computerName' or contains(serialNumber,'$serialNumber')"
+    } elseif ($serialNumber) {
+        $filterCondition = "contains(serialNumber,'$serialNumber')"
+    } elseif ($computerName) {
+        $filterCondition = "deviceName eq '$computerName'"
+    } else {
+        Write-Host "Fail" -ForegroundColor Red
+        Write-Warning "Either serialNumber or computerName must be provided for Autopilot search"
+        return
+    }
+
     try {
-        $AutopilotDevice = Get-MgDeviceManagementWindowsAutopilotDeviceIdentity -Filter "deviceName eq '$computerName' or contains(serialNumber,'$serialNumber')" -ErrorAction Stop
-        #$Response = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities?`$filter=contains(serialNumber,'$SerialNumber')" -ErrorAction Stop
+        $AutopilotDevice = Get-MgDeviceManagementWindowsAutopilotDeviceIdentity -Filter $filterCondition -ErrorAction Stop
     } catch {
         Write-Host "Fail" -ForegroundColor Red
         Write-Error "$($_.Exception.Message)"
@@ -355,22 +322,123 @@ if (($PSBoundParameters.ContainsKey("Autopilot") -or $PSBoundParameters.Contains
             Write-Host "..." -NoNewline
             try {
                 $result = Remove-MgDeviceManagementWindowsAutopilotDeviceIdentity -WindowsAutopilotDeviceIdentityId $AutopilotDevice.Id -PassThru -ErrorAction Stop
-                if ($result -eq $true) {Write-Host "Success" -ForegroundColor Green
-                } else {Write-Host "Fail" -ForegroundColor Red}
+                if ($result -eq $true) {
+                    Write-Host "Success" -ForegroundColor Green
+                } else {
+                    Write-Host "Fail" -ForegroundColor Red
+                }
             } catch {
                 Write-Host "Fail" -ForegroundColor Red
                 Write-Error "$($_.Exception.Message)"
             }           
         } elseif ($AutopilotDevice.Count -gt 1) {
             Write-Host "Fail" -ForegroundColor Red
-            Write-Warning "Multiple devices found in Windows Autopilot with the same device name or serial number. Ensure uniqueness." 
-            Return
+            Write-Warning "Multiple devices found in Windows Autopilot with the same device name or serial number. Ensure uniqueness."
         } else {
             Write-Host "Fail" -ForegroundColor Red
-            Write-Warning "Device not found in Windows Autopilot"    
+            Write-Warning "Device not found in Windows Autopilot"
         }
     }
-} #endregion Autopilot
+}
+#endregion Autopilot
+
+#region ConfigMgr
+if ($PSBoundParameters.ContainsKey("ConfigMgr") -or $PSBoundParameters.ContainsKey("All")) {
+    Write-Host "Locating device in" -NoNewline
+    Write-Host " ConfigMgr" -ForegroundColor Magenta -NoNewline
+    Write-Host "..." -NoNewline
+    try {
+        $SiteCode = (Get-PSDrive -PSProvider CMSITE -ErrorAction Stop).Name
+        Push-Location "$($SiteCode):" -ErrorAction Stop
+        if ($serialNumber) {
+            # Using serial number to locate device
+            [array]$ConfigMgrDevices = Get-CMDevice | Where-Object { 
+                (Get-CMDeviceHardwareInventory -ResourceId $_.ResourceID | 
+                Select-Object -ExpandProperty SMS_G_System_COMPUTER_SYSTEM_PRODUCT).Version -eq $serialNumber 
+            } -ErrorAction Stop
+            # Storing the associated computer name for future use in other regions if available
+            if ($ConfigMgrDevices.Count -eq 1) {
+                $global:ComputerName = $ConfigMgrDevices[0].Name
+            }
+        } elseif ($computerName) {
+            # Using computer name to locate device
+            [array]$ConfigMgrDevices = Get-CMDevice -Name $computerName -ErrorAction Stop
+        } else {
+            throw "Either serialNumber or computerName must be provided for ConfigMgr search"
+        }
+        Write-Host "Success" -ForegroundColor Green
+    } catch {
+        Write-Host "Fail" -ForegroundColor Red
+        Write-Error "$($_.Exception.Message)"
+        $LocateInConfigMgrFailure = $true
+    }
+    # if successfully located, attempt removal from ConfigMgr
+    if (!$LocateInConfigMgrFailure) {
+        if ($ConfigMgrDevices.Count -eq 1) {
+            $ConfigMgrDevice = $ConfigMgrDevices[0]
+            Write-Host "  ResourceID: $($ConfigMgrDevice.ResourceID)"
+            Write-Host "  SMSID: $($ConfigMgrDevice.SMSID)"
+            Write-Host "  UserDomainName: $($ConfigMgrDevice.UserDomainName)"
+            Write-Host "  ComputerName: $global:ComputerName"
+            Write-Host "Removing device from" -NoNewline
+            Write-Host " ConfigMgr" -ForegroundColor Magenta -NoNewline
+            Write-Host "..." -NoNewline
+            try {
+                Remove-CMDevice -InputObject $ConfigMgrDevice -Force -ErrorAction Stop
+                Write-Host "Success" -ForegroundColor Green
+            } catch {
+                Write-Host "Fail" -ForegroundColor Red
+                Write-Error "$($_.Exception.Message)"
+            }
+        } elseif ($ConfigMgrDevices.Count -gt 1) {
+            Write-Host "Fail" -ForegroundColor Red
+            Write-Warning "Multiple devices found in ConfigMgr. Ensure uniqueness using either serial number or computer name." 
+        } else {
+            Write-Host "Fail" -ForegroundColor Red
+            Write-Warning "Device not found in ConfigMgr"
+        }
+    }
+    Pop-Location
+}
+#endregion ConfigMgr
+
+#region AD
+if ($PSBoundParameters.ContainsKey("AD") -or $PSBoundParameters.ContainsKey("All")) {
+    # Ensure we have computerName
+    if (-not $computerName) {Write-Warning "Computer name is not set, cannot proceed with AD lookup."
+        return
+    }
+    try {
+        Write-host "Locating device in " -NoNewline
+        Write-host "Active Directory" -ForegroundColor Blue -NoNewline
+        Write-Host "..." -NoNewline
+        $Searcher = [ADSISearcher]::new()
+        $Searcher.Filter = "(sAMAccountName=$computerName`$)"
+        [void]$Searcher.PropertiesToLoad.Add("distinguishedName")
+        $ComputerAccount = $Searcher.FindOne()
+        if ($ComputerAccount) {
+            Write-host "Success" -ForegroundColor Green
+            Write-Host "Removing device from" -NoNewline
+            Write-Host " Active Directory" -NoNewline -ForegroundColor Blue
+            Write-Host "..." -NoNewline
+            # Optionally, you can add a confirmation prompt here
+            # $confirmation = Read-Host "Are you sure you want to delete the computer account from AD? (Y/N)"
+            # if ($confirmation -ne 'Y') {
+            #    Write-Host "Operation aborted by user." -ForegroundColor Yellow
+            #    return
+            # }
+            $DirectoryEntry = $ComputerAccount.GetDirectoryEntry()
+            $result = $DirectoryEntry.DeleteTree()
+            Write-Host "Success" -ForegroundColor Green
+        } else {
+            Write-host "Fail" -ForegroundColor Red
+            Write-Warning "Device not found in Active Directory"  
+        }
+    } catch {
+        Write-host "Fail" -ForegroundColor Red
+        Write-Error "$($_.Exception.Message)"
+    }
+} #endregion AD
 
 Set-Location $env:SystemDrive
 if ($PSBoundParameters.ContainsKey("AAD") -or 
