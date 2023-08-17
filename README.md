@@ -8,17 +8,17 @@ This PowerShell script is a one-stop solution for administrators seeking to effi
 
 - For all scenarios, the user account must have the required permissions to read and delete device records.
 - Necessary Microsoft Graph modules will be installed for the user if they aren't present.
-- **Configuration Manager (-ConfigMgr)**:
-  - ConfigMgr PowerShell module should be installed on the host workstation.
-- **Active Directory (-AD)**:
-  - The host workstation needs to be joined to the domain.
-  - The host workstation should be able to communicate with a domain controller.
 - **Azure Active Directory (-AAD), -Intune, and -Autopilot**:
   - The Microsoft Graph PowerShell enterprise application with App ID 14d82eec-204b-4c2f-b7e8-296a70dab67e is required.
   - The following permissions, granted with admin consent, are essential:
       - Directory.AccessAsUser.All (for Azure AD)
       - DeviceManagementManagedDevices.ReadWrite.All (for Intune)
       - DeviceManagementServiceConfig.ReadWrite.All (for Autopilot)
+- **Configuration Manager (-ConfigMgr)**:
+  - ConfigMgr PowerShell module should be installed on the host workstation.
+- **Active Directory (-AD)**:
+  - The host workstation needs to be joined to the domain.
+  - The host workstation should be able to communicate with a domain controller.
 
 ***Note:*** Always ensure you have backups and have tested in a non-production environment before running any script on live systems.
 
