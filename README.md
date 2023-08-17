@@ -9,7 +9,8 @@ This PowerShell script is a one-stop solution for administrators seeking to effi
 - For all scenarios, the user account must have the required permissions to read and delete device records.
 - Necessary Microsoft Graph modules will be installed for the user if they aren't present.
 - **Azure Active Directory (-AAD), Intune (-Intune), and Autopilot (-Autopilot)**:
-  - The Microsoft Graph PowerShell enterprise application with App ID 14d82eec-204b-4c2f-b7e8-296a70dab67e is required.
+  - The Microsoft Graph PowerShell enterprise application 
+      - App ID 14d82eec-204b-4c2f-b7e8-296a70dab67e is required.
   - The following permissions, granted with admin consent, are essential:
       - Directory.AccessAsUser.All (for Azure AD)
       - DeviceManagementManagedDevices.ReadWrite.All (for Intune)
