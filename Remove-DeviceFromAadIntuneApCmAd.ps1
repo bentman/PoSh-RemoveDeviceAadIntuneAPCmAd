@@ -54,22 +54,17 @@
     Copyright (c) 2023 https://github.com/bentman
     https://github.com/bentman/Use-TsToExcel
 #>
-[CmdletBinding(DefaultParameterSetName='AllSerialNumber')]
+[CmdletBinding()]
 param (
-    [Parameter(ValueFromPipelineByPropertyName=$true, ValueFromPipeline=$true, ParameterSetName='AllSerialNumber')]
-    [Parameter(ValueFromPipelineByPropertyName=$true, ValueFromPipeline=$true, ParameterSetName='IndividualSerialNumber')]
+    [Parameter(Mandatory=$true, ValueFromPipelineByPropertyName=$true, ValueFromPipeline=$true, ParameterSetName='BySerialNumber')]
     [string]$serialNumber,
-    [Parameter(ValueFromPipelineByPropertyName=$true, ValueFromPipeline=$true, ParameterSetName='AllComputerName')]
-    [Parameter(ValueFromPipelineByPropertyName=$true, ValueFromPipeline=$true, ParameterSetName='IndividualComputerName')]
+    [Parameter(Mandatory=$true, ValueFromPipelineByPropertyName=$true, ValueFromPipeline=$true, ParameterSetName='ByComputerName')]
     [string]$computerName,
-    [Parameter(ParameterSetName='AllSerialNumber')]
-    [Parameter(ParameterSetName='AllComputerName')]
-    [switch]$All,
-    [Parameter(ParameterSetName='IndividualSerialNumber')] [Parameter(ParameterSetName='IndividualComputerName')] [switch]$AAD,
-    [Parameter(ParameterSetName='IndividualSerialNumber')] [Parameter(ParameterSetName='IndividualComputerName')] [switch]$Intune,
-    [Parameter(ParameterSetName='IndividualSerialNumber')] [Parameter(ParameterSetName='IndividualComputerName')] [switch]$Autopilot,
-    [Parameter(ParameterSetName='IndividualSerialNumber')] [Parameter(ParameterSetName='IndividualComputerName')] [switch]$ConfigMgr,
-    [Parameter(ParameterSetName='IndividualSerialNumber')] [Parameter(ParameterSetName='IndividualComputerName')] [switch]$AD
+    [Parameter(ParameterSetName='BySerialNumber')] [Parameter(ParameterSetName='ByComputerName')] [switch]$AAD,
+    [Parameter(ParameterSetName='BySerialNumber')] [Parameter(ParameterSetName='ByComputerName')] [switch]$Intune,
+    [Parameter(ParameterSetName='BySerialNumber')] [Parameter(ParameterSetName='ByComputerName')] [switch]$Autopilot,
+    [Parameter(ParameterSetName='BySerialNumber')] [Parameter(ParameterSetName='ByComputerName')] [switch]$ConfigMgr,
+    [Parameter(ParameterSetName='BySerialNumber')] [Parameter(ParameterSetName='ByComputerName')] [switch]$AD
 )
 # Change location to system drive
 Set-Location $env:SystemDrive
@@ -344,28 +339,20 @@ if (($PSBoundParameters.ContainsKey("Autopilot") -or $PSBoundParameters.Contains
 
 #region ConfigMgr
 if ($PSBoundParameters.ContainsKey("ConfigMgr") -or $PSBoundParameters.ContainsKey("All")) {
+    # Attempt to locate the device in ConfigMgr using serial number
     Write-Host "Locating device in" -NoNewline
     Write-Host " ConfigMgr" -ForegroundColor Magenta -NoNewline
     Write-Host "..." -NoNewline
     try {
         $SiteCode = (Get-PSDrive -PSProvider CMSITE -ErrorAction Stop).Name
         Push-Location "$($SiteCode):" -ErrorAction Stop
-        if ($serialNumber) {
-            # Using serial number to locate device
-            [array]$ConfigMgrDevices = Get-CMDevice | Where-Object { 
-                (Get-CMDeviceHardwareInventory -ResourceId $_.ResourceID | 
-                Select-Object -ExpandProperty SMS_G_System_COMPUTER_SYSTEM_PRODUCT).Version -eq $serialNumber 
-            } -ErrorAction Stop
-            # Storing the associated computer name for future use in other regions if available
-            if ($ConfigMgrDevices.Count -eq 1) {
-                $global:ComputerName = $ConfigMgrDevices[0].Name
-            }
-        } elseif ($computerName) {
-            # Using computer name to locate device
-            [array]$ConfigMgrDevices = Get-CMDevice -Name $computerName -ErrorAction Stop
-        } else {
-            throw "Either serialNumber or computerName must be provided for ConfigMgr search"
-        }
+        # Getting the computer name associated with the serial number from ConfigMgr
+        [array]$ConfigMgrDevices = Get-CMDevice | Where-Object { 
+            (Get-CMDeviceHardwareInventory -ResourceId $_.ResourceID | 
+            Select-Object -ExpandProperty SMS_G_System_COMPUTER_SYSTEM_PRODUCT).Version -eq $serialNumber 
+        } -ErrorAction Stop
+        # Storing the associated computer name for future use in other regions
+        $global:ComputerName = $ConfigMgrDevices[0].Name
         Write-Host "Success" -ForegroundColor Green
     } catch {
         Write-Host "Fail" -ForegroundColor Red
@@ -392,14 +379,15 @@ if ($PSBoundParameters.ContainsKey("ConfigMgr") -or $PSBoundParameters.ContainsK
             }
         } elseif ($ConfigMgrDevices.Count -gt 1) {
             Write-Host "Fail" -ForegroundColor Red
-            Write-Warning "Multiple devices found in ConfigMgr. Ensure uniqueness using either serial number or computer name." 
+            Write-Warning "Multiple devices found in ConfigMgr with the same serial number. Serial number must be unique." 
+            Return
         } else {
             Write-Host "Fail" -ForegroundColor Red
-            Write-Warning "Device not found in ConfigMgr"
+            Write-Warning "Device not found in ConfigMgr using the provided serial number."    
         }
     }
     Pop-Location
-}
+} 
 #endregion ConfigMgr
 
 #region AD
