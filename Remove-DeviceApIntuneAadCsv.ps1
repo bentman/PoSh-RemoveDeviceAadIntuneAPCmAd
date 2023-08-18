@@ -12,16 +12,16 @@
 
 function Remove-DeviceApIntuneAadCsv {
     param ([Parameter(Mandatory=$true)][string]$CsvFilePath)
-    # Authenticate and set up modules
-    function AuthenticateAndSetup {
-        # Authenticate to Microsoft Graph
+    # MS-Graph Modules list
+    $moduleNames = @( 
+        "Microsoft.Graph.Identity.DirectoryManagement",
+        "Microsoft.Graph.DeviceManagement",
+        "Microsoft.Graph.DeviceManagement.Enrollment"
+    )
+    # Authenticate to Microsoft Graph
+    function Connect-MsftGraph {
         $token = Get-MgAccessToken
         # Import necessary Microsoft.Graph modules
-        $moduleNames = @(
-            "Microsoft.Graph.Identity.DirectoryManagement",
-            "Microsoft.Graph.DeviceManagement",
-            "Microsoft.Graph.DeviceManagement.Enrollment"
-        )
         foreach ($module in $moduleNames) {
             Import-Module $module -Force
         }
@@ -30,7 +30,7 @@ function Remove-DeviceApIntuneAadCsv {
     # Import the CSV file
     $serialNumbers = Import-Csv -Path $CsvFilePath
     # Authenticate to services and setup necessary modules
-    $token = AuthenticateAndSetup
+    $token = Connect-MsftGraph
     foreach ($row in $serialNumbers) {
         $serialNumber = $row[0]
         # Attempt to locate and remove the device in Autopilot

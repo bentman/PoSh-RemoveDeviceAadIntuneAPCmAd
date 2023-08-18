@@ -13,6 +13,7 @@
 
 function Remove-DeviceCmAdCsv {
     param ([Parameter(Mandatory=$true)][string]$CsvFilePath)
+    Set-Location $env:SystemDrive
     # Import the CSV file
     $serialNumbers = Import-Csv -Path $CsvFilePath
     # Connect to ConfigMgr Site
@@ -102,11 +103,7 @@ function Remove-DeviceCmAdCsv {
                 Write-Error "$($_.Exception.Message)"
             }
         }
-        # Push back into the ConfigMgr drive for the next iteration
-        Push-Location "$($SiteCode):" -ErrorAction Stop
     }
-    # Pop out of the ConfigMgr drive one final time at the end
-    Pop-Location
 }
 
 # Uncomment the line below to test the function directly after opening the script 
