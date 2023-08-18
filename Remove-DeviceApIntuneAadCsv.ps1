@@ -32,7 +32,7 @@ function Remove-DeviceApIntuneAadCsv {
     # Authenticate to services and setup necessary modules
     $token = AuthenticateAndSetup
     foreach ($row in $serialNumbers) {
-        $serialNumber = $row.'Serial Number'
+        $serialNumber = $row[0]
         # Attempt to locate and remove the device in Autopilot
         Write-Host "Processing Serial Number: $serialNumber"
         Write-Host "Locating device in Autopilot" -NoNewline

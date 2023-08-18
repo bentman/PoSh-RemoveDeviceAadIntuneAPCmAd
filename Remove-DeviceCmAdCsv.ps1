@@ -19,7 +19,7 @@ function Remove-DeviceCmAdCsv {
     $SiteCode = (Get-PSDrive -PSProvider CMSITE -ErrorAction Stop).Name
     Push-Location "$($SiteCode):" -ErrorAction Stop
     foreach ($row in $serialNumbers) {
-        $serialNumber = $row.'Serial Number'
+        $serialNumber = $row[0]
         $computerName = $null
         # Attempt to locate the device in ConfigMgr using serial number
         Write-Host "Processing Serial Number: $serialNumber"
