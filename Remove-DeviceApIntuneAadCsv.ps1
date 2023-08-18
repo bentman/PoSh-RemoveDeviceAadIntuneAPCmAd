@@ -85,5 +85,5 @@ function Remove-DeviceApIntuneAadCsv {
     }
 }
 
-# Uncomment the line below to test the function directly after opening the script
+# Uncomment the line below to test the function directly after opening the script 
 # Remove-DeviceApIntuneAadCsv -CsvFilePath "path_to_your_csv_file.csv"
