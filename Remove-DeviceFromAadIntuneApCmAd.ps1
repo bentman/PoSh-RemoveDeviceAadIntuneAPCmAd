@@ -41,17 +41,14 @@
     * ConfigMgr PowerShell module
     * Microsoft.Graph modules
 .EXAMPLE
-    .\Remove-DeviceFromAadIntuneApCmAd.ps1 -serialNumber "XYZ1234" -AAD -Intune -Autopilot
-        For cloud-only removal in AzureAD, Intune, and Autopilot.
-.EXAMPLE
-    .\Remove-DeviceFromAadIntuneApCmAd.ps1 -serialNumber "XYZ1234" -ConfigMgr -AD
-        For on-prem removal in ConfigMgr and AD.
-.EXAMPLE
-    .\Remove-DeviceFromAadIntuneApCmAd.ps1 -serialNumber "XYZ1234" -All
-        For removal across all platforms.
-.EXAMPLE
-    .\Remove-DeviceFromAadIntuneApCmAd.ps1 -computerName "HQO-XYZ1234" -AD
-        For AD-only removal.
+    For cloud-only removal in AzureAD, Intune, and Autopilot.
+        .\Remove-DeviceFromAadIntuneApCmAd.ps1 -serialNumber "XYZ1234" -AAD -Intune -Autopilot
+    For on-prem removal in ConfigMgr and AD.
+        .\Remove-DeviceFromAadIntuneApCmAd.ps1 -serialNumber "XYZ1234" -ConfigMgr -AD
+    For removal across all platforms.
+        .\Remove-DeviceFromAadIntuneApCmAd.ps1 -serialNumber "XYZ1234" -All
+    For AD-only removal.
+        .\Remove-DeviceFromAadIntuneApCmAd.ps1 -computerName "HQO-XYZ1234" -AD
 .CREDIT
     Original script sourced from: https://gist.github.com/SMSAgentSoftware/27ff318f3973b97ca6b5cb99e8c93293
     Enhanced with [OpenAI's ChatGPT](https://chat.openai.com/).
