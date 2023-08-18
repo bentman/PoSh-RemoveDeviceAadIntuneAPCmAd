@@ -8,13 +8,13 @@ This PowerShell script is a one-stop solution for administrators seeking to effi
 
 - For all scenarios, the user account must have the required permissions to read and delete device records.
 - Necessary Microsoft Graph modules will be installed for the user if they aren't present.
-- **Azure Active Directory (-AAD), Intune (-Intune), and Autopilot (-Autopilot)**:
+- **Autopilot (-Autopilot), Intune (-Intune), and Azure Active Directory (-AAD)**:
   - The Microsoft Graph PowerShell enterprise application 
       - App ID 14d82eec-204b-4c2f-b7e8-296a70dab67e is required.
   - The following permissions, granted with admin consent, are essential:
-      - Directory.AccessAsUser.All (for Azure AD)
-      - DeviceManagementManagedDevices.ReadWrite.All (for Intune)
       - DeviceManagementServiceConfig.ReadWrite.All (for Autopilot)
+      - DeviceManagementManagedDevices.ReadWrite.All (for Intune)
+      - Directory.AccessAsUser.All (for Azure AD)
 - **Configuration Manager (-ConfigMgr)**:
   - ConfigMgr PowerShell module should be installed on the host workstation.
 - **Active Directory (-AD)**:
@@ -26,19 +26,19 @@ This PowerShell script is a one-stop solution for administrators seeking to effi
 ***
 ## Usage:
 
-Cloud Only | Remove device by serial number from Azure AD, Intune and Autopilot.
+**Cloud Only** | Remove device by serial number from Azure AD, Intune and Autopilot.
 ```powershell
 .\Remove-DeviceCmAdAadIntuneAp.ps1 -serialNumber "YourDeviceSerialNumber" -AAD - Intune -Autopilot
 ```
-Hybrid | Remove device by serial number from Azure AD, Intune, Autopilot, ConfigMgr, and Active Directory.
+**Hybrid** | Remove device by serial number from Azure AD, Intune, Autopilot, ConfigMgr, and Active Directory.
 ```powershell
 .\Remove-DeviceCmAdAadIntuneAp.ps1 -serialNumber "YourDeviceSerialNumber" -All
 ```
-On-Prem | Remove device by serial number from both ConfigMgr and Active Directory.
+**On-Prem** | Remove device by serial number from both ConfigMgr and Active Directory.
 ```powershell
 .\Remove-DeviceCmAdAadIntuneAp.ps1 -serialNumber "YourDeviceSerialNumber" -ConfigMgr -AD
 ```
-AD Only | Active Directory does not store $serialNumber, so if you are only removing from AD use this one.
+**AD Only** | Active Directory does not store $serialNumber, so if you are only removing from AD use this one.
 ```powershell
 .\Remove-DeviceCmAdAadIntuneAp.ps1 -computerName "YourDevice-ComputerName" -AD
 ```

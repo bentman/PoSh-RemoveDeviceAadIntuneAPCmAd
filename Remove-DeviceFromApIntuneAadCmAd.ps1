@@ -10,12 +10,12 @@
         Used for AD operations. Needed if the serialNumber doesn't identify a device in ConfigMgr.
     -All
         Removes devices from all platforms/services using either the serialNumber or computerName.
-    -AAD
-        Deletes the device from Azure AD.
-    -Intune
-        Deletes the device from Intune.
     -Autopilot
         Deletes the device from Autopilot.
+    -Intune
+        Deletes the device from Intune.
+    -AAD
+        Deletes the device from Azure AD.
     -ConfigMgr
         Deletes from ConfigMgr. If successful, retrieves the computerName for AD operations.
     -AD
