@@ -1,4 +1,4 @@
-# Remove-DeviceAadIntuneApCmAd.ps1
+# Remove-DeviceApIntuneAadCmAd.ps1
 
 ## Description:  
 This PowerShell script is a one-stop solution for administrators seeking to efficiently delete device records from Azure AD (AAD), Intune, Autopilot, ConfigMgr, & Active Directory (AD). It is particularly beneficial for tidying up post Autopilot test deployments. 
