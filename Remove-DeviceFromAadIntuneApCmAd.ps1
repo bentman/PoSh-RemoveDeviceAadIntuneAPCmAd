@@ -65,7 +65,7 @@ param (
     [string]$serialNumber,
     [Parameter(Mandatory=$false, ValueFromPipelineByPropertyName=$true, ValueFromPipeline=$true, ParameterSetName='ByComputerName')]
     [string]$computerName,
-    [Parameter(ParameterSetName='BySerialNumber')] [Parameter(ParameterSetName='All')] [switch]$All,
+    [Parameter(ParameterSetName='BySerialNumber')] [Parameter(ParameterSetName='ByComputerName')] [switch]$All,
     [Parameter(ParameterSetName='BySerialNumber')] [Parameter(ParameterSetName='ByComputerName')] [switch]$AAD, 
     [Parameter(ParameterSetName='BySerialNumber')] [Parameter(ParameterSetName='ByComputerName')] [switch]$Intune,
     [Parameter(ParameterSetName='BySerialNumber')] [Parameter(ParameterSetName='ByComputerName')] [switch]$Autopilot,
@@ -76,12 +76,11 @@ param (
 # Change location to system drive
 Set-Location $env:SystemDrive
 
-# Variable Validation
+#region VariableValidation
 if (-not $PSBoundParameters.ContainsKey('serialNumber') -and -not $PSBoundParameters.ContainsKey('computerName')) {
-    Write-Error "Either -serialNumber or -computerName must be provided."
+    Write-Error "Either -serialNumber or -computerName must be provided (not both)."
     exit
 }
-
 if ($PSBoundParameters.ContainsKey('All')) {
     $AAD = $true
     $Intune = $true
@@ -89,27 +88,29 @@ if ($PSBoundParameters.ContainsKey('All')) {
     $ConfigMgr = $true
     $AD = $true
 }
-
 if ($AD -and $PSBoundParameters.ContainsKey('serialNumber')) {
     if (-not ($AAD -or $Intune -or $Autopilot -or $ConfigMgr)) {
         Write-Error "-AD with -serialNumber requires one of -AAD, -Intune, -Autopilot, or -ConfigMgr to derive computerName."
         exit
     }
 }
+#endregion VariableValidation
 
-# Check if we should be importing modules
+#region Modules
+# Import ConfigMgr module if necessary
+if ($PSBoundParameters.ContainsKey('ConfigMgr')) {
+    Import-Module (Join-Path $(Split-Path $env:SMS_ADMIN_UI_PATH) ConfigurationManager.psd1) -ErrorAction Stop
+}
+# Check if we should be importing cloud modules
 $shouldImportModules = $PSBoundParameters.ContainsKey("AAD") -or 
                        $PSBoundParameters.ContainsKey("Intune") -or 
                        $PSBoundParameters.ContainsKey("Autopilot") -or 
                        $PSBoundParameters.ContainsKey("All")
-
-# Modules Import
 if ($shouldImportModules) {
     Write-Host "Importing modules"
-    
     $provider = Get-PackageProvider NuGet -ErrorAction Ignore
     if (-not $provider) {
-        Write-Host "Installing provider NuGet..." -NoNewline
+        Write-Host "Installing package provider  NuGet..." -NoNewline
         try {
             Find-PackageProvider -Name NuGet -ForceBootstrap -IncludeDependencies -Force -ErrorAction Stop
             Write-Host "Success" -ForegroundColor Green
@@ -118,8 +119,12 @@ if ($shouldImportModules) {
             throw $_.Exception.Message
         }
     }
-    
-    function Invoke-ModuleInstallOrImport($moduleName) {
+    $moduleNames = @(
+        "Microsoft.Graph.Identity.DirectoryManagement",
+        "Microsoft.Graph.DeviceManagement",
+        "Microsoft.Graph.DeviceManagement.Enrollment"
+    )
+    foreach ($moduleName in $moduleNames) {
         $module = Get-Module -Name $moduleName -ListAvailable
         if (-not $module) {
             Write-Host "Installing module $moduleName..." -NoNewline
@@ -135,30 +140,20 @@ if ($shouldImportModules) {
             Import-Module $moduleName -ErrorAction Stop
         }
     }
-    
-    Invoke-ModuleInstallOrImport "Microsoft.Graph.Identity.DeviceManagement"
-    Invoke-ModuleInstallOrImport "Microsoft.Graph.Identity.DirectoryManagement"
-    
-    # Import ConfigMgr module if necessary
-    if ($PSBoundParameters.ContainsKey('ConfigMgr')) {
-        Import-Module (Join-Path $(Split-Path $env:SMS_ADMIN_UI_PATH) ConfigurationManager.psd1) -ErrorAction Stop
-    }
-}
+} #endregion Modules
 
-# Authentication
+#region Authentication
 $requiresAuthentication = $PSBoundParameters.ContainsKey('AAD') -or 
                           $PSBoundParameters.ContainsKey('Intune') -or 
                           $PSBoundParameters.ContainsKey('Autopilot') -or 
                           $PSBoundParameters.ContainsKey('All')
-
 if ($requiresAuthentication) {
     Write-Host "Authenticating..."
-    
     # Set authentication scopes
     $scopes = @('https://graph.microsoft.com/.default')
     $graphAppId = 'd1ddf0e4-d672-4dae-b554-9d5bdfd93547'
     Connect-MgGraph -ClientId $graphAppId -TenantId $env:TENANT_ID -CertificateThumbprint $env:THUMBPRINT -Scopes $scopes
-}
+} #endregion Authentication
 
 #region AAD
 if ($PSBoundParameters.ContainsKey("AAD") -or $PSBoundParameters.ContainsKey("All")) {
