@@ -76,7 +76,7 @@ param (
 # Change location to system drive
 Set-Location $env:SystemDrive
 
-#region VariableValidation
+#region ParameterValidation
 if (-not $PSBoundParameters.ContainsKey('serialNumber') -and -not $PSBoundParameters.ContainsKey('computerName')) {
     Write-Error "Either -serialNumber or -computerName must be provided (not both)."
     exit
@@ -94,9 +94,9 @@ if ($AD -and $PSBoundParameters.ContainsKey('serialNumber')) {
         exit
     }
 }
-#endregion VariableValidation
+#endregion ParameterValidation
 
-#region Modules
+#region EnsureModules
 # Import ConfigMgr module if necessary
 if ($PSBoundParameters.ContainsKey('ConfigMgr')) {
     Import-Module (Join-Path $(Split-Path $env:SMS_ADMIN_UI_PATH) ConfigurationManager.psd1) -ErrorAction Stop
@@ -140,9 +140,9 @@ if ($shouldImportModules) {
             Import-Module $moduleName -ErrorAction Stop
         }
     }
-} #endregion Modules
+} #endregion EnsureModules
 
-#region Authentication
+#region AuthenticateCloud
 $requiresAuthentication = $PSBoundParameters.ContainsKey('AAD') -or 
                           $PSBoundParameters.ContainsKey('Intune') -or 
                           $PSBoundParameters.ContainsKey('Autopilot') -or 
@@ -153,109 +153,7 @@ if ($requiresAuthentication) {
     $scopes = @('https://graph.microsoft.com/.default')
     $graphAppId = 'd1ddf0e4-d672-4dae-b554-9d5bdfd93547'
     Connect-MgGraph -ClientId $graphAppId -TenantId $env:TENANT_ID -CertificateThumbprint $env:THUMBPRINT -Scopes $scopes
-} #endregion Authentication
-
-#region AAD
-if ($PSBoundParameters.ContainsKey("AAD") -or $PSBoundParameters.ContainsKey("All")) {
-    Write-Host "Locating device in Azure AD" -NoNewline
-    Write-Host "..." -NoNewline -ForegroundColor Yellow
-    # Logic to decide the search parameter based on what's provided
-    if ($serialNumber) {
-        $searchParameter = "serialNumber:$serialNumber"
-    } elseif ($computerName) {
-        $searchParameter = "displayName:$computerName"
-    } else {
-        Write-Host " Fail" -ForegroundColor Red
-        Write-Warning "Either serialNumber or computerName must be provided for Azure AD search"
-        return
-    }
-    try {
-        $AADDevice = Get-MgDevice -Search $searchParameter -CountVariable CountVar -ConsistencyLevel eventual -ErrorAction Stop
-    } catch {
-        Write-Host " Fail" -ForegroundColor Red
-        Write-Error "$($_.Exception.Message)"
-        $LocateInAADFailure = $true
-    }
-    if ($LocateInAADFailure -ne $true) {
-        if ($AADDevice.Count -eq 1) {
-            Write-Host " Success" -ForegroundColor Green
-            Write-Host "  DisplayName: $($AADDevice.DisplayName)"
-            Write-Host "  ObjectId: $($AADDevice.Id)"
-            Write-Host "  DeviceId: $($AADDevice.DeviceId)"
-            Write-Host "Removing device from Azure AD" -NoNewline
-            Write-Host "..." -NoNewline -ForegroundColor Yellow
-            try {
-                $Result = Remove-MgDevice -DeviceId $AADDevice.Id -PassThru -ErrorAction Stop
-                if ($Result -eq $true) {
-                    Write-Host " Success" -ForegroundColor Green
-                } else {
-                    Write-Host " Fail" -ForegroundColor Red
-                }
-            } catch {
-                Write-Host " Fail" -ForegroundColor Red
-                Write-Error "$($_.Exception.Message)"
-            }
-        } elseif ($AADDevice.Count -gt 1) {
-            Write-Host " Fail" -ForegroundColor Red
-            Write-Warning "Multiple devices found in Azure AD. The device display name must be unique."
-        } else {
-            Write-Host " Fail" -ForegroundColor Red
-            Write-Warning "Device not found in Azure AD"
-        }
-    }
-} #endregion AAD
-
-#region Intune
-if ($PSBoundParameters.ContainsKey("Intune") -or $PSBoundParameters.ContainsKey("Autopilot") -or $PSBoundParameters.ContainsKey("All")) {
-    Write-Host "Locating device in Intune" -NoNewline
-    Write-Host "..." -NoNewline -ForegroundColor Cyan
-    # Determine the filter condition based on provided parameters
-    if ($serialNumber -and $computerName) {
-        $filterCondition = "deviceName eq '$computerName' or hardwareSerialNumber eq '$serialNumber'"
-    } elseif ($serialNumber) {
-        $filterCondition = "hardwareSerialNumber eq '$serialNumber'"
-    } elseif ($computerName) {
-        $filterCondition = "deviceName eq '$computerName'"
-    } else {
-        Write-Host " Fail" -ForegroundColor Red
-        Write-Warning "Either serialNumber or computerName must be provided for Intune search"
-        return
-    }
-    try {
-        $IntuneDevice = Get-MgDeviceManagementManagedDevice -Filter $filterCondition -ErrorAction Stop
-    } catch {
-        Write-Host " Fail" -ForegroundColor Red
-        Write-Error "$($_.Exception.Message)"
-        $LocateInIntuneFailure = $true
-    }
-    if (!$LocateInIntuneFailure) {
-        if ($IntuneDevice.Count -eq 1) {
-            Write-Host " Success" -ForegroundColor Green
-            Write-Host "  DeviceName: $($IntuneDevice.DeviceName)"
-            Write-Host "  ObjectId: $($IntuneDevice.Id)"
-            Write-Host "  AzureAdDeviceId: $($IntuneDevice.AzureAdDeviceId)"
-            Write-Host "Removing device from Intune" -NoNewline
-            Write-Host "..." -NoNewline -ForegroundColor Cyan
-            try {
-                $result = Remove-MgDeviceManagementManagedDevice -ManagedDeviceId $IntuneDevice.Id -PassThru -ErrorAction Stop
-                if ($result -eq $true) {
-                    Write-Host " Success" -ForegroundColor Green
-                } else {
-                    Write-Host " Fail" -ForegroundColor Red
-                }
-            } catch {
-                Write-Host " Fail" -ForegroundColor Red
-                Write-Error "$($_.Exception.Message)"
-            }           
-        } elseif ($IntuneDevice.Count -gt 1) {
-            Write-Host " Fail" -ForegroundColor Red
-            Write-Warning "Multiple devices found in Intune with the same device name or serial number. Ensure uniqueness."
-        } else {
-            Write-Host " Fail" -ForegroundColor Red
-            Write-Warning "Device not found in Intune"
-        }
-    }
-} #endregion Intune
+} #endregion AuthenticateCloud
 
 #region Autopilot
 if (($PSBoundParameters.ContainsKey("Autopilot") -or $PSBoundParameters.ContainsKey("All")) -and $IntuneDevice.Count -eq 1) {
@@ -309,39 +207,39 @@ if (($PSBoundParameters.ContainsKey("Autopilot") -or $PSBoundParameters.Contains
     }
 } #endregion Autopilot
 
-#region ConfigMgr
-if ($PSBoundParameters.ContainsKey("ConfigMgr") -or $PSBoundParameters.ContainsKey("All")) {
-    Write-Host "Locating device in Configuration Manager" -NoNewline
+#region Intune
+if ($PSBoundParameters.ContainsKey("Intune") -or $PSBoundParameters.ContainsKey("Autopilot") -or $PSBoundParameters.ContainsKey("All")) {
+    Write-Host "Locating device in Intune" -NoNewline
     Write-Host "..." -NoNewline -ForegroundColor Cyan
     # Determine the filter condition based on provided parameters
     if ($serialNumber -and $computerName) {
-        $filterCondition = "Name = '$computerName' or SMS_G_System_COMPUTER_SYSTEM_PRODUCT.SerialNumber = '$serialNumber'"
+        $filterCondition = "deviceName eq '$computerName' or hardwareSerialNumber eq '$serialNumber'"
     } elseif ($serialNumber) {
-        $filterCondition = "SMS_G_System_COMPUTER_SYSTEM_PRODUCT.SerialNumber = '$serialNumber'"
+        $filterCondition = "hardwareSerialNumber eq '$serialNumber'"
     } elseif ($computerName) {
-        $filterCondition = "Name = '$computerName'"
+        $filterCondition = "deviceName eq '$computerName'"
     } else {
         Write-Host " Fail" -ForegroundColor Red
-        Write-Warning "Either serialNumber or computerName must be provided for Configuration Manager search"
+        Write-Warning "Either serialNumber or computerName must be provided for Intune search"
         return
     }
     try {
-        $ConfigMgrDevice = Get-CMDevice -Filter $filterCondition -ErrorAction Stop
+        $IntuneDevice = Get-MgDeviceManagementManagedDevice -Filter $filterCondition -ErrorAction Stop
     } catch {
         Write-Host " Fail" -ForegroundColor Red
         Write-Error "$($_.Exception.Message)"
-        $LocateInConfigMgrFailure = $true
+        $LocateInIntuneFailure = $true
     }
-    if (!$LocateInConfigMgrFailure) {
-        if ($ConfigMgrDevice.Count -eq 1) {
+    if (!$LocateInIntuneFailure) {
+        if ($IntuneDevice.Count -eq 1) {
             Write-Host " Success" -ForegroundColor Green
-            Write-Host "  Name: $($ConfigMgrDevice.Name)"
-            Write-Host "  ResourceID: $($ConfigMgrDevice.ResourceID)"
-            Write-Host "  SMBIOSGUID: $($ConfigMgrDevice.SMBIOSGUID)"
-            Write-Host "Removing device from Configuration Manager" -NoNewline
+            Write-Host "  DeviceName: $($IntuneDevice.DeviceName)"
+            Write-Host "  ObjectId: $($IntuneDevice.Id)"
+            Write-Host "  AzureAdDeviceId: $($IntuneDevice.AzureAdDeviceId)"
+            Write-Host "Removing device from Intune" -NoNewline
             Write-Host "..." -NoNewline -ForegroundColor Cyan
             try {
-                $result = Remove-CMDevice -ResourceId $ConfigMgrDevice.ResourceID -PassThru -ErrorAction Stop
+                $result = Remove-MgDeviceManagementManagedDevice -ManagedDeviceId $IntuneDevice.Id -PassThru -ErrorAction Stop
                 if ($result -eq $true) {
                     Write-Host " Success" -ForegroundColor Green
                 } else {
@@ -350,16 +248,126 @@ if ($PSBoundParameters.ContainsKey("ConfigMgr") -or $PSBoundParameters.ContainsK
             } catch {
                 Write-Host " Fail" -ForegroundColor Red
                 Write-Error "$($_.Exception.Message)"
-            }
-        } elseif ($ConfigMgrDevice.Count -gt 1) {
+            }           
+        } elseif ($IntuneDevice.Count -gt 1) {
             Write-Host " Fail" -ForegroundColor Red
-            Write-Warning "Multiple devices found in Configuration Manager with the same name or serial number. Ensure uniqueness."
+            Write-Warning "Multiple devices found in Intune with the same device name or serial number. Ensure uniqueness."
         } else {
             Write-Host " Fail" -ForegroundColor Red
-            Write-Warning "Device not found in Configuration Manager"
+            Write-Warning "Device not found in Intune"
         }
     }
-} #endregion ConfigMgr
+} #endregion Intune
+
+#region AAD
+if ($PSBoundParameters.ContainsKey("AAD") -or $PSBoundParameters.ContainsKey("All")) {
+    Write-Host "Locating device in Azure AD" -NoNewline
+    Write-Host "..." -NoNewline -ForegroundColor Yellow
+    # Logic to decide the search parameter based on what's provided
+    if ($serialNumber) {
+        $searchParameter = "serialNumber:$serialNumber"
+    } elseif ($computerName) {
+        $searchParameter = "displayName:$computerName"
+    } else {
+        Write-Host " Fail" -ForegroundColor Red
+        Write-Warning "Either serialNumber or computerName must be provided for Azure AD search"
+        return
+    }
+    try {
+        $AADDevice = Get-MgDevice -Search $searchParameter -CountVariable CountVar -ConsistencyLevel eventual -ErrorAction Stop
+    } catch {
+        Write-Host " Fail" -ForegroundColor Red
+        Write-Error "$($_.Exception.Message)"
+        $LocateInAADFailure = $true
+    }
+    if ($LocateInAADFailure -ne $true) {
+        if ($AADDevice.Count -eq 1) {
+            Write-Host " Success" -ForegroundColor Green
+            Write-Host "  DisplayName: $($AADDevice.DisplayName)"
+            Write-Host "  ObjectId: $($AADDevice.Id)"
+            Write-Host "  DeviceId: $($AADDevice.DeviceId)"
+            Write-Host "Removing device from Azure AD" -NoNewline
+            Write-Host "..." -NoNewline -ForegroundColor Yellow
+            try {
+                $Result = Remove-MgDevice -DeviceId $AADDevice.Id -PassThru -ErrorAction Stop
+                if ($Result -eq $true) {
+                    Write-Host " Success" -ForegroundColor Green
+                } else {
+                    Write-Host " Fail" -ForegroundColor Red
+                }
+            } catch {
+                Write-Host " Fail" -ForegroundColor Red
+                Write-Error "$($_.Exception.Message)"
+            }
+        } elseif ($AADDevice.Count -gt 1) {
+            Write-Host " Fail" -ForegroundColor Red
+            Write-Warning "Multiple devices found in Azure AD. The device display name must be unique."
+        } else {
+            Write-Host " Fail" -ForegroundColor Red
+            Write-Warning "Device not found in Azure AD"
+        }
+    }
+} #endregion AAD
+
+#region ConfigMgr
+if ($PSBoundParameters.ContainsKey("ConfigMgr") -or $PSBoundParameters.ContainsKey("All")) {
+    # Attempt to locate the device in ConfigMgr using serial number
+    Write-Host "Locating device in ConfigMgr" -NoNewline
+    Write-Host "..." -NoNewline -ForegroundColor Magenta
+    try {
+        $SiteCode = (Get-PSDrive -PSProvider CMSITE -ErrorAction Stop).Name
+        Push-Location "$($SiteCode):" -ErrorAction Stop
+        # If serialNumber is provided, try to find the associated computer name
+        if ($serialNumber) {
+            # Getting the computer name associated with the serial number from ConfigMgr
+            [array]$ConfigMgrDevices = Get-CMDevice | Where-Object { 
+                (Get-CMDeviceHardwareInventory -ResourceId $_.ResourceID | 
+                Select-Object -ExpandProperty SMS_G_System_COMPUTER_SYSTEM_PRODUCT).Version -eq $serialNumber 
+            } -ErrorAction Stop
+            # If a device is found in ConfigMgr for the serial number, set the computerName
+            if ($ConfigMgrDevices.Count -eq 1) {
+                $computerName = $ConfigMgrDevices[0].Name
+            }
+        }
+        # If no computer name found or provided, throw an error
+        if (-not $computerName) {
+            Throw "Unable to locate a computer name associated with the provided serial number."
+        }
+        Write-Host " Success" -ForegroundColor Green
+    } catch {
+        Write-Host " Fail" -ForegroundColor Red
+        Write-Error "$($_.Exception.Message)"
+        $LocateInConfigMgrFailure = $true
+    }
+    # If successfully located, attempt removal from ConfigMgr
+    if (!$LocateInConfigMgrFailure) {
+        if ($ConfigMgrDevices.Count -eq 1) {
+            $ConfigMgrDevice = $ConfigMgrDevices[0]
+            Write-Host "  ResourceID: $($ConfigMgrDevice.ResourceID)"
+            Write-Host "  SMSID: $($ConfigMgrDevice.SMSID)"
+            Write-Host "  UserDomainName: $($ConfigMgrDevice.UserDomainName)"
+            Write-Host "  ComputerName: $computerName"
+            Write-Host "Removing device from ConfigMgr" -NoNewline
+            Write-Host "..." -NoNewline -ForegroundColor Magenta
+            try {
+                Remove-CMDevice -InputObject $ConfigMgrDevice -Force -ErrorAction Stop
+                Write-Host "Success" -ForegroundColor Green
+            } catch {
+                Write-Host "Fail" -ForegroundColor Red
+                Write-Error "$($_.Exception.Message)"
+            }
+        } elseif ($ConfigMgrDevices.Count -gt 1) {
+            Write-Host "Fail" -ForegroundColor Red
+            Write-Warning "Multiple devices found in ConfigMgr with the same serial number. Serial number must be unique." 
+            Return
+        } else {
+            Write-Host "Fail" -ForegroundColor Red
+            Write-Warning "Device not found in ConfigMgr using the provided serial number."    
+        }
+    }
+    Pop-Location
+}
+#endregion ConfigMgr
 
 #region AD
 if ($PSBoundParameters.ContainsKey("AD") -or $PSBoundParameters.ContainsKey("All")) {
