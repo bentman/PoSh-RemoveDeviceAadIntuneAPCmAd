@@ -109,5 +109,5 @@ function Remove-DeviceCmAdCsv {
     Pop-Location
 }
 
-# Uncomment the line below to test the function directly after opening the script
+# Uncomment the line below to test the function directly after opening the script 
 # Remove-DeviceCmAdCsv -CsvFilePath "path_to_your_csv_file.csv"
