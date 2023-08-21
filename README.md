@@ -28,19 +28,19 @@ This PowerShell script is a one-stop solution for administrators seeking to effi
 
 **Cloud Only** | Remove device by serial number from Autopilot, Azure AD, and Intune.
 ```powershell
-.\Remove-DeviceCmAdAadIntuneAp.ps1 -serialNumber "YourDeviceSerialNumber" -Autopilot -Intune -AAD 
+.\Remove-DeviceApIntuneAadCmAd.ps1 -serialNumber "YourDeviceSerialNumber" -Autopilot -Intune -AAD 
 ```
 **Hybrid** | Remove device by serial number from Autopilot, Intune, Azure AD, ConfigMgr, and Active Directory.
 ```powershell
-.\Remove-DeviceCmAdAadIntuneAp.ps1 -serialNumber "YourDeviceSerialNumber" -All
+.\Remove-DeviceApIntuneAadCmAd.ps1 -serialNumber "YourDeviceSerialNumber" -All
 ```
 **On-Prem** | Remove device by serial number from ConfigMgr and Active Directory.
 ```powershell
-.\Remove-DeviceCmAdAadIntuneAp.ps1 -serialNumber "YourDeviceSerialNumber" -ConfigMgr -AD
+.\Remove-DeviceApIntuneAadCmAd.ps1 -serialNumber "YourDeviceSerialNumber" -ConfigMgr -AD
 ```
 **AD Only** | Active Directory does not store $serialNumber, so if you are only removing from AD use this one.
 ```powershell
-.\Remove-DeviceCmAdAadIntuneAp.ps1 -computerName "YourDevice-ComputerName" -AD
+.\Remove-DeviceApIntuneAadCmAd.ps1 -computerName "YourDevice-ComputerName" -AD
 ```
 
 ###
