@@ -43,7 +43,7 @@ This PowerShell script is a one-stop solution for administrators seeking to effi
 .\Remove-DeviceApIntuneAadCmAd.ps1 -computerName "YourDevice-ComputerName" -AD
 ```
 
-![Remove-DeviceCmAdCsv](/assest/Remove-DeviceCmAdCsv.png "Remove-DeviceCmAdCsv")
+![Remove-DeviceCmAdCsv](/assets/Remove-DeviceCmAdCsv.png "Remove-DeviceCmAdCsv")
 
 ###
 ## Contributions
