@@ -3,7 +3,7 @@
 
     !!!THIS SCRIPT IS NOT WORKING!!! 
 
-    NEEDS TO BE RE-WRITTEN USING APPROPRIATE GRAPH-API APP-ID ATHENTICATION - STAY TUNED!
+    NEEDS TO BE RE-WRITTEN USING APPROPRIATE GRAPH-API APP-ID AUTHENTICATION - STAY TUNED!
 
 .SYNOPSIS
     Function: Remove-DeviceApIntuneAadCsv - locates and removes devices from Autopilot, Intune, and Azure AD using serial numbers provided in a CSV file.
