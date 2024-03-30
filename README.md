@@ -13,7 +13,7 @@ This PowerShell script is a one-stop solution for administrators seeking to effi
       - ~~Intune App ID d1ddf0e4-d672-4dae-b554-9d5bdfd93547 is required.~~
       - *Intune App-ID for access to Graph-API has been deprecated 2024-04-01*
         - [More info in ReadMe.md @ powershell-intune-samples](https://github.com/microsoftgraph/powershell-intune-samples/tree/9d0dac47b1058584e1026119d4fd7f635eb446d5)
-        - [Better info @ oofhours.com](https://oofhours.com/2024/03/29/using-a-well-known-intune-app-id-for-access-to-graph-not-for-much-longer/)
+        - [Better info @ oofhours.com ;-)](https://oofhours.com/2024/03/29/using-a-well-known-intune-app-id-for-access-to-graph-not-for-much-longer/)
       - Create unique App-Id for each use...
         - [Quickstart: Register an application with the Microsoft identity platform](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)
   - The following permissions, granted with admin consent, are essential:
