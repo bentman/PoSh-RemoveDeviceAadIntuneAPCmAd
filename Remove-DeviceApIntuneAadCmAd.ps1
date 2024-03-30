@@ -4,6 +4,10 @@
 .DESCRIPTION
     This script handles device removal across various platforms.
 .PARAMETERS
+    -graphAppId
+        Default App-Id (d1ddf0e4-d672-4dae-b554-9d5bdfd93547) deprecated 2024-04-01!!!
+        Script will prompt, but you can hard code your own in the parameters... example:
+        [string]$graphAppId = 'YourUniq-ueAp-pIdF-orGr-aphApiUsage!'
     -serialNumber
         Mandatory for all platforms except AD. Used to locate devices.
     -computerName
@@ -61,6 +65,8 @@
 
 [CmdletBinding(DefaultParameterSetName='BySerialNumber')]
 param (
+    [Parameter(Mandatory=$true, ValueFromPipelineByPropertyName=$true, ValueFromPipeline=$true, ParameterSetName='BySerialNumber')]
+    [string]$graphAppId, # = 'd1ddf0e4-d672-4dae-b554-9d5bdfd93547' deprecated!!!
     [Parameter(Mandatory=$false, ValueFromPipelineByPropertyName=$true, ValueFromPipeline=$true, ParameterSetName='BySerialNumber')]
     [string]$serialNumber,
     [Parameter(Mandatory=$false, ValueFromPipelineByPropertyName=$true, ValueFromPipeline=$true, ParameterSetName='ByComputerName')]
@@ -151,7 +157,6 @@ if ($requiresAuthentication) {
     Write-Host "Authenticating..."
     # Set authentication scopes
     $scopes = @('https://graph.microsoft.com/.default')
-    $graphAppId = 'd1ddf0e4-d672-4dae-b554-9d5bdfd93547'
     Connect-MgGraph -ClientId $graphAppId -TenantId $env:TENANT_ID -CertificateThumbprint $env:THUMBPRINT -Scopes $scopes
 } #endregion AuthenticateCloud
 
